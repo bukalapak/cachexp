@@ -1,0 +1,9 @@
+{
+  "name": "cache #02",
+  "foo": {
+    "name": "foo #02",
+    "bar": {
+      "name": "bar #01"
+    }
+  }
+}
