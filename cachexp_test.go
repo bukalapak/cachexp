@@ -12,16 +12,31 @@ import (
 )
 
 func TestExpand(t *testing.T) {
-	p := &provider{T: t}
+	p := &provider{}
 
 	for _, f := range fixtureGlob("*-expandable.json") {
 		t.Run(strings.TrimSuffix(f, ".json"), func(t *testing.T) {
-			b := fixtureMustLoad(t, f)
-			x := fixtureMustLoad(t, strings.Replace(f, "expandable", "expanded", 1))
+			b := fixtureMustLoad(f)
+			x := fixtureMustLoad(strings.Replace(f, "expandable", "expanded", 1))
 
 			v, err := cachexp.Expand(p, b)
 			assert.Nil(t, err)
 			assert.JSONEq(t, string(x), string(v))
+		})
+	}
+}
+
+func BenchmarkExpand(b *testing.B) {
+	p := &provider{}
+
+	for _, f := range fixtureGlob("*-expandable.json") {
+		z := fixtureMustLoad(f)
+
+		b.ReportAllocs()
+		b.Run(strings.TrimSuffix(f, ".json"), func(b *testing.B) {
+			for n := 0; n < b.N; n++ {
+				cachexp.Expand(p, z)
+			}
 		})
 	}
 }
@@ -40,10 +55,10 @@ func fixtureLoad(name string) ([]byte, error) {
 	return b, nil
 }
 
-func fixtureMustLoad(t *testing.T, name string) []byte {
+func fixtureMustLoad(name string) []byte {
 	b, err := fixtureLoad(name)
 	if err != nil {
-		t.Fatalf(err.Error())
+		panic(err)
 	}
 
 	return b
@@ -59,9 +74,7 @@ func fixtureGlob(pattern string) (gs []string) {
 	return
 }
 
-type provider struct {
-	T *testing.T
-}
+type provider struct{}
 
 func (p *provider) Marshal(v interface{}) ([]byte, error)   { return json.Marshal(v) }
 func (p *provider) Unmarshal(b []byte, v interface{}) error { return json.Unmarshal(b, v) }
