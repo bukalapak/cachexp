@@ -1,0 +1,19 @@
+{
+  "name": "cache #04",
+  "foos": [
+    {
+      "name": "foo #01"
+    },
+    {
+      "name": "foo #02",
+      "bar": {
+        "name": "bar #01"
+      }
+    }
+  ],
+  "bars": [
+    {
+      "name": "bar #01"
+    }
+  ]
+}

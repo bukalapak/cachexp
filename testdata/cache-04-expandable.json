@@ -1,0 +1,7 @@
+{
+  "__cache_keys": {
+    "foos": ["v1/foo/01", "v1/foo/02"],
+    "bars": ["v1/bar/01"]
+  },
+  "name": "cache #04"
+}
