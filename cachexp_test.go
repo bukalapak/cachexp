@@ -1,13 +1,14 @@
 package cachexp_test
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/bukalapak/cachexp"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,11 +29,11 @@ func TestExpand(t *testing.T) {
 
 func BenchmarkExpand(b *testing.B) {
 	p := &provider{}
+	b.ReportAllocs()
 
 	for _, f := range fixtureGlob("*-expandable.json") {
 		z := fixtureMustLoad(f)
 
-		b.ReportAllocs()
 		b.Run(strings.TrimSuffix(f, ".json"), func(b *testing.B) {
 			for n := 0; n < b.N; n++ {
 				cachexp.Expand(p, z)
@@ -74,34 +75,40 @@ func fixtureGlob(pattern string) (gs []string) {
 	return
 }
 
-type provider struct{}
+type provider struct {
+	once sync.Once
+	data map[string][]byte
+}
 
-func (p *provider) Marshal(v interface{}) ([]byte, error)   { return json.Marshal(v) }
-func (p *provider) Unmarshal(b []byte, v interface{}) error { return json.Unmarshal(b, v) }
+func (p *provider) Marshal(v interface{}) ([]byte, error)   { return jsoniter.Marshal(v) }
+func (p *provider) Unmarshal(b []byte, v interface{}) error { return jsoniter.Unmarshal(b, v) }
 
-func (p *provider) Read(key string) ([]byte, error) {
-	ms := map[string]string{}
+func (p *provider) init() {
+	p.data = make(map[string][]byte)
 
 	for _, f := range fixtureGlob("*-v?-??-*.json") {
 		ss := strings.Split(strings.TrimSuffix(f, filepath.Ext(f)), "-")
 		bs := []string{ss[1], ss[3], ss[2]}
+		ks := strings.Join(bs, "/")
 
-		ms[strings.Join(bs, "/")] = f
+		if b, err := fixtureLoad(f); err == nil {
+			p.data[ks] = b
+		}
 	}
+}
 
-	return fixtureLoad(ms[key])
+func (p *provider) Read(key string) ([]byte, error) {
+	p.once.Do(p.init)
+	return p.data[key], nil
 }
 
 func (p *provider) ReadMulti(keys []string) (map[string][]byte, error) {
 	mx := make(map[string][]byte, len(keys))
 
 	for _, s := range keys {
-		b, err := p.Read(s)
-		if err != nil {
-			return nil, err
+		if b, err := p.Read(s); err == nil {
+			mx[s] = b
 		}
-
-		mx[s] = b
 	}
 
 	return mx, nil
