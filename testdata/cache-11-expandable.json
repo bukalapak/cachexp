@@ -1,0 +1,7 @@
+{
+  "data": {
+    "foos": {
+      "__cache_keys": ["v1/foo/01", "v1/foo/02"]
+    }
+  }
+}
