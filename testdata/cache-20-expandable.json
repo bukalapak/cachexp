@@ -1,0 +1,6 @@
+{
+  "name": "cache #20",
+  "__cache_keys": {
+    "stacks": ["v1/foo/01", "v1/bar/01", "v1/broken/01"]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "cache #20",
+  "stacks": [
+    {
+      "name": "foo #01"
+    },
+    {
+      "name": "bar #01"
+    }
+  ]
+}
