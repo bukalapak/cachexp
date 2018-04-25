@@ -1,0 +1,15 @@
+{
+  "data": {
+    "wrap": {
+      "wrap2": {
+        "wrap3": {
+          "wrap4": {
+            "__cache_keys": {
+              "foo": "v1/foo/04"
+            }
+          }
+        }
+      }
+    }
+  }
+}

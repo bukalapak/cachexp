@@ -1,0 +1,24 @@
+{
+  "data": {
+    "wrap": {
+      "wrap2": {
+        "wrap3": {
+          "wrap4": {
+            "foo": {
+              "name": "foo #04",
+              "foo": {
+                "name": "foo #04",
+                "foo": {
+                  "name": "foo #04",
+                  "foo": {
+                    "name": "foo #04"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
