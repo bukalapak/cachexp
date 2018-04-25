@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/bukalapak/cachexp"
+	"github.com/bukalapak/ottoman/cache"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 )
@@ -92,14 +93,14 @@ func (p *provider) init() {
 		ks := strings.Join(bs, "/")
 
 		if b, err := fixtureLoad(f); err == nil {
-			p.data[ks] = b
+			p.data[p.Normalize(ks)] = b
 		}
 	}
 }
 
 func (p *provider) Read(key string) ([]byte, error) {
 	p.once.Do(p.init)
-	return p.data[key], nil
+	return p.data[p.Normalize(key)], nil
 }
 
 func (p *provider) ReadMulti(keys []string) (map[string][]byte, error) {
@@ -116,4 +117,8 @@ func (p *provider) ReadMulti(keys []string) (map[string][]byte, error) {
 
 func (p *provider) IsExcluded(key string) bool {
 	return strings.HasPrefix(key, "__")
+}
+
+func (p *provider) Normalize(key string) string {
+	return cache.Normalize(key, "prefix")
 }
