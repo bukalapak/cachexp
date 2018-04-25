@@ -1,6 +1,7 @@
 package cachexp_test
 
 import (
+	"errors"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -103,6 +104,11 @@ func (p *provider) init() {
 
 func (p *provider) Read(key string) ([]byte, error) {
 	p.once.Do(p.init)
+
+	if strings.Contains(key, "/void/") {
+		return nil, errors.New("cache does not exist")
+	}
+
 	return p.data[p.Normalize(key)], nil
 }
 
