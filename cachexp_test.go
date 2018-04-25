@@ -34,12 +34,13 @@ func TestExpand(t *testing.T) {
 
 func BenchmarkExpand(b *testing.B) {
 	p := &provider{}
-	b.ReportAllocs()
 
 	for _, f := range fixtureGlob("*-expandable.json") {
 		z := fixtureMustLoad(f)
 
 		b.Run(strings.TrimSuffix(f, ".json"), func(b *testing.B) {
+			b.ReportAllocs()
+
 			for n := 0; n < b.N; n++ {
 				cachexp.Expand(p, z)
 			}
