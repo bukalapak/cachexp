@@ -113,3 +113,7 @@ func (p *provider) ReadMulti(keys []string) (map[string][]byte, error) {
 
 	return mx, nil
 }
+
+func (p *provider) IsExcluded(key string) bool {
+	return strings.HasPrefix(key, "__")
+}
