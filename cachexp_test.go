@@ -22,8 +22,11 @@ func TestExpand(t *testing.T) {
 			x := fixtureMustLoad(strings.Replace(f, "expandable", "expanded", 1))
 
 			v, err := cachexp.Expand(p, b)
-			assert.Nil(t, err)
-			assert.JSONEq(t, string(x), string(v))
+			if err != nil {
+				assert.Equal(t, x, v)
+			} else {
+				assert.JSONEq(t, string(x), string(v))
+			}
 		})
 	}
 }
