@@ -1,0 +1,7 @@
+{
+  "name": "cache #14",
+  "__cache_keys": {
+    "foo1": "v1/foo/01",
+    "foo2": "prefix:v1/foo/01"
+  }
+}
