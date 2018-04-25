@@ -1,0 +1,7 @@
+{
+  "name": "cache #13",
+  "__cache_keys": {
+    "foo": "v1/foo/01",
+    "__excluded": "v1/bar/01"
+  }
+}
