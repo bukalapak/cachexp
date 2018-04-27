@@ -23,11 +23,11 @@ func TestExpand(t *testing.T) {
 
 	for _, f := range fixtureGlob("*-expandable.json") {
 		t.Run(strings.TrimSuffix(f, ".json"), func(t *testing.T) {
-			b := fixtureMustLoad(f)
+			z := fixtureMustLoad(f)
 			x := fixtureMustLoad(strings.Replace(f, "expandable", "expanded", 1))
 			r, _ := http.NewRequest("GET", h.URL, nil)
 
-			v, err := cachexp.Expand(p, b, r)
+			v, err := cachexp.Expand(p, z, r)
 			if err != nil {
 				assert.Equal(t, x, v)
 			} else {
@@ -125,7 +125,7 @@ type Provider struct {
 	N *cache.Engine
 }
 
-func NewProvider() *Provider {
+func NewProvider() cachexp.Provider {
 	g := NewStorage("prefix")
 	p := cache.NewProvider(g).(*cache.Engine)
 	p.Prefix = g.prefix
@@ -145,18 +145,20 @@ func (p *Provider) IsExcluded(key string) bool {
 	return strings.HasPrefix(key, "__")
 }
 
-func (p *Provider) Fetch(key string, r *http.Request) ([]byte, error) {
-	s := p.Normalize(key)
+func (p *Provider) ReadFetch(key string, r *http.Request) ([]byte, error) {
+	return p.N.ReadFetch(p.Normalize(key), r)
+}
 
-	if b, err := p.N.Read(s); err == nil {
-		return b, nil
-	}
-
-	return p.N.Fetch(s, r)
+func (p *Provider) ReadFetchMulti(keys []string, r *http.Request) (map[string][]byte, error) {
+	return p.N.ReadFetchMulti(p.NormalizeMulti(keys), r)
 }
 
 func (p *Provider) Normalize(key string) string {
 	return p.N.Normalize(key)
+}
+
+func (p *Provider) NormalizeMulti(keys []string) []string {
+	return p.N.NormalizeMulti(keys)
 }
 
 type Storage struct {
