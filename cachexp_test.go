@@ -123,6 +123,7 @@ func NewRemote() *httptest.Server {
 
 type Provider struct {
 	N *cache.Engine
+	t cachexp.Tuner
 }
 
 func NewProvider() cachexp.Provider {
@@ -131,34 +132,19 @@ func NewProvider() cachexp.Provider {
 	p.Prefix = g.prefix
 	p.Resolver = NewResolver()
 
-	return &Provider{N: p}
+	return &Provider{N: p, t: NewTuner()}
 }
 
 func (p *Provider) Marshal(v interface{}) ([]byte, error)   { return jsoniter.Marshal(v) }
 func (p *Provider) Unmarshal(b []byte, v interface{}) error { return jsoniter.Unmarshal(b, v) }
-
-func (p *Provider) Resolve(key string, r *http.Request) (*http.Request, error) {
-	return p.N.Resolver.Resolve(key, r)
-}
-
-func (p *Provider) IsExcluded(key string) bool {
-	return strings.HasPrefix(key, "__")
-}
+func (p *Provider) Tuner() cachexp.Tuner                    { return p.t }
 
 func (p *Provider) ReadFetch(key string, r *http.Request) ([]byte, error) {
-	return p.N.ReadFetch(p.Normalize(key), r)
+	return p.N.ReadFetch(p.N.Normalize(key), r)
 }
 
 func (p *Provider) ReadFetchMulti(keys []string, r *http.Request) (map[string][]byte, error) {
-	return p.N.ReadFetchMulti(p.NormalizeMulti(keys), r)
-}
-
-func (p *Provider) Normalize(key string) string {
-	return p.N.Normalize(key)
-}
-
-func (p *Provider) NormalizeMulti(keys []string) []string {
-	return p.N.NormalizeMulti(keys)
+	return p.N.ReadFetchMulti(p.N.NormalizeMulti(keys), r)
 }
 
 type Storage struct {
@@ -202,6 +188,8 @@ func (g *Storage) ReadMulti(keys []string) (map[string][]byte, error) {
 
 type Resolver struct{}
 
+func NewResolver() cache.Resolver { return &Resolver{} }
+
 func (m *Resolver) Resolve(key string, r *http.Request) (*http.Request, error) {
 	req := httpclone.Request(r)
 	req.URL.Path = "/" + cache.Normalize(key, "")
@@ -213,6 +201,11 @@ func (m *Resolver) ResolveRequest(r *http.Request) (*http.Request, error) {
 	return httpclone.Request(r), nil
 }
 
-func NewResolver() cache.Resolver {
-	return &Resolver{}
-}
+type Tuner struct{}
+
+func NewTuner() *Tuner { return &Tuner{} }
+
+func (n *Tuner) ExpandKey() string          { return "__cache_keys" }
+func (n *Tuner) PlaceholderKey() string     { return "__" }
+func (n *Tuner) ExpandDepth() int           { return 4 }
+func (n *Tuner) IsExcluded(key string) bool { return strings.HasPrefix(key, "__") }
