@@ -8,11 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/bukalapak/cachexp"
 	"github.com/bukalapak/ottoman/cache"
-	httpClone "github.com/bukalapak/ottoman/http/clone"
+	httpclone "github.com/bukalapak/ottoman/http/clone"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 )
@@ -26,7 +25,7 @@ func TestExpand(t *testing.T) {
 		t.Run(strings.TrimSuffix(f, ".json"), func(t *testing.T) {
 			b := fixtureMustLoad(f)
 			x := fixtureMustLoad(strings.Replace(f, "expandable", "expanded", 1))
-			r := NewRequest(h.URL)
+			r, _ := http.NewRequest("GET", h.URL, nil)
 
 			v, err := cachexp.Expand(p, b, r)
 			if err != nil {
@@ -45,7 +44,7 @@ func BenchmarkExpand(b *testing.B) {
 
 	for _, f := range fixtureGlob("*-expandable.json") {
 		z := fixtureMustLoad(f)
-		r := NewRequest(h.URL)
+		r, _ := http.NewRequest("GET", h.URL, nil)
 
 		b.Run(strings.TrimSuffix(f, ".json"), func(b *testing.B) {
 			b.ReportAllocs()
@@ -106,101 +105,6 @@ func fixtureMap(pattern string) map[string][]byte {
 	return m
 }
 
-type Provider struct {
-	Transport http.RoundTripper
-	Timeout   time.Duration
-	data      map[string][]byte
-}
-
-func NewProvider() *Provider {
-	p := &Provider{
-		Transport: http.DefaultTransport,
-		Timeout:   100 * time.Millisecond,
-	}
-
-	p.init()
-
-	return p
-}
-
-func (p *Provider) Marshal(v interface{}) ([]byte, error)   { return jsoniter.Marshal(v) }
-func (p *Provider) Unmarshal(b []byte, v interface{}) error { return jsoniter.Unmarshal(b, v) }
-
-func (p *Provider) init() {
-	p.data = make(map[string][]byte)
-
-	for k, v := range fixtureMap("cache-v?-??-*.json") {
-		p.data[p.Normalize(k)] = v
-	}
-}
-
-func (p *Provider) read(key string) ([]byte, error) {
-	if b, ok := p.data[p.Normalize(key)]; ok {
-		return b, nil
-	}
-
-	return nil, errors.New("cache does not exist")
-}
-
-func (p *Provider) readMulti(keys []string) (map[string][]byte, error) {
-	mx := make(map[string][]byte, len(keys))
-
-	for _, s := range keys {
-		if b, err := p.read(s); err == nil {
-			mx[s] = b
-		}
-	}
-
-	return mx, nil
-}
-
-func (p *Provider) httpClient() *http.Client {
-	return &http.Client{
-		Transport: p.Transport,
-		Timeout:   p.Timeout,
-	}
-}
-
-func (p *Provider) IsExcluded(key string) bool {
-	return strings.HasPrefix(key, "__")
-}
-
-func (p *Provider) Normalize(key string) string {
-	return cache.Normalize(key, "prefix")
-}
-
-func (p *Provider) Fetch(key string, r *http.Request) ([]byte, error) {
-	if b, err := p.read(key); err == nil {
-		return b, nil
-	}
-
-	req, err := p.Resolve(key, r)
-	if err != nil {
-		return nil, err
-	}
-
-	c := p.httpClient()
-
-	res, err := c.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer res.Body.Close()
-
-	if res.StatusCode != http.StatusOK {
-		return nil, errors.New("invalid http status:" + res.Status)
-	}
-
-	return ioutil.ReadAll(res.Body)
-}
-
-func (p *Provider) Resolve(key string, r *http.Request) (*http.Request, error) {
-	req := httpClone.Request(r)
-	req.URL.Path = "/" + key
-
-	return req, nil
-}
-
 func NewRemote() *httptest.Server {
 	rm := fixtureMap("remote-v?-??-*.json")
 	fn := func(w http.ResponseWriter, r *http.Request) {
@@ -217,7 +121,96 @@ func NewRemote() *httptest.Server {
 	return httptest.NewServer(http.HandlerFunc(fn))
 }
 
-func NewRequest(s string) *http.Request {
-	r, _ := http.NewRequest("GET", s, nil)
-	return r
+type Provider struct {
+	N *cache.Engine
+}
+
+func NewProvider() *Provider {
+	g := NewStorage("prefix")
+	p := cache.NewProvider(g).(*cache.Engine)
+	p.Prefix = g.prefix
+	p.Resolver = NewResolver()
+
+	return &Provider{N: p}
+}
+
+func (p *Provider) Marshal(v interface{}) ([]byte, error)   { return jsoniter.Marshal(v) }
+func (p *Provider) Unmarshal(b []byte, v interface{}) error { return jsoniter.Unmarshal(b, v) }
+
+func (p *Provider) Resolve(key string, r *http.Request) (*http.Request, error) {
+	return p.N.Resolver.Resolve(key, r)
+}
+
+func (p *Provider) IsExcluded(key string) bool {
+	return strings.HasPrefix(key, "__")
+}
+
+func (p *Provider) Fetch(key string, r *http.Request) ([]byte, error) {
+	s := p.Normalize(key)
+
+	if b, err := p.N.Read(s); err == nil {
+		return b, nil
+	}
+
+	return p.N.Fetch(s, r)
+}
+
+func (p *Provider) Normalize(key string) string {
+	return p.N.Normalize(key)
+}
+
+type Storage struct {
+	data   map[string][]byte
+	prefix string
+}
+
+func NewStorage(prefix string) *Storage {
+	data := make(map[string][]byte)
+
+	for k, v := range fixtureMap("cache-v?-??-*.json") {
+		data[cache.Normalize(k, prefix)] = v
+	}
+
+	return &Storage{data: data, prefix: prefix}
+}
+
+func (g *Storage) Name() string {
+	return "cachexp-storage"
+}
+
+func (g *Storage) Read(key string) ([]byte, error) {
+	if b, ok := g.data[key]; ok {
+		return b, nil
+	}
+
+	return nil, errors.New("cache does not exist")
+}
+
+func (g *Storage) ReadMulti(keys []string) (map[string][]byte, error) {
+	mx := make(map[string][]byte, len(keys))
+
+	for _, s := range keys {
+		if b, err := g.Read(s); err == nil {
+			mx[s] = b
+		}
+	}
+
+	return mx, nil
+}
+
+type Resolver struct{}
+
+func (m *Resolver) Resolve(key string, r *http.Request) (*http.Request, error) {
+	req := httpclone.Request(r)
+	req.URL.Path = "/" + cache.Normalize(key, "")
+
+	return req, nil
+}
+
+func (m *Resolver) ResolveRequest(r *http.Request) (*http.Request, error) {
+	return httpclone.Request(r), nil
+}
+
+func NewResolver() cache.Resolver {
+	return &Resolver{}
 }
