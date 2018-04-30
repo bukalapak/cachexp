@@ -1,0 +1,6 @@
+{
+  "name": "foo #05",
+  "children": {
+    "__cache_keys": ["v1/foo/03", "v1/foo/04"]
+  }
+}
