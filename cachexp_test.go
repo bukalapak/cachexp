@@ -6,12 +6,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/bukalapak/cachexp"
 	"github.com/bukalapak/ottoman/cache"
 	httpclone "github.com/bukalapak/ottoman/http/clone"
+	"github.com/google/go-cmp/cmp"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 )
@@ -20,6 +23,21 @@ func TestExpand(t *testing.T) {
 	p := NewProvider()
 	h := NewRemote()
 	defer h.Close()
+
+	opts := []cmp.Option{
+		cmp.Transformer("", func(v []interface{}) []interface{} {
+			y := v
+
+			sort.Slice(y, func(i, j int) bool {
+				x := reflect.ValueOf(y[i])
+				z := reflect.ValueOf(y[j])
+
+				return x.Len() < z.Len()
+			})
+
+			return y
+		}),
+	}
 
 	for _, f := range fixtureGlob("*-expandable.json") {
 		t.Run(strings.TrimSuffix(f, ".json"), func(t *testing.T) {
@@ -31,7 +49,13 @@ func TestExpand(t *testing.T) {
 			if err != nil {
 				assert.Equal(t, x, v)
 			} else {
-				assert.JSONEq(t, string(x), string(v))
+				cc := make(map[string]interface{})
+				xx := make(map[string]interface{})
+
+				jsoniter.Unmarshal(v, &cc)
+				jsoniter.Unmarshal(x, &xx)
+
+				assert.True(t, cmp.Equal(xx, cc, opts...))
 			}
 		})
 	}
