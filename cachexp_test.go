@@ -1,7 +1,6 @@
 package cachexp_test
 
 import (
-	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -12,8 +11,8 @@ import (
 
 	"github.com/bukalapak/cachexp"
 	"github.com/bukalapak/ottoman/cache"
+	"github.com/bukalapak/ottoman/encoding/json"
 	httpclone "github.com/bukalapak/ottoman/http/clone"
-	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -164,8 +163,8 @@ func NewProvider() cachexp.Provider {
 	return &Provider{N: p, t: NewTuner()}
 }
 
-func (p *Provider) Marshal(v interface{}) ([]byte, error)   { return jsoniter.Marshal(v) }
-func (p *Provider) Unmarshal(b []byte, v interface{}) error { return jsoniter.Unmarshal(b, v) }
+func (p *Provider) Marshal(v interface{}) ([]byte, error)   { return json.Marshal(v) }
+func (p *Provider) Unmarshal(b []byte, v interface{}) error { return json.Unmarshal(b, v) }
 func (p *Provider) Tuner() cachexp.Tuner                    { return p.t }
 
 func (p *Provider) ReadFetch(key string, r *http.Request) ([]byte, error) {
