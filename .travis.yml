@@ -1,0 +1,7 @@
+language: go
+go:
+  - "1.10"
+script:
+  - make coverage
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
