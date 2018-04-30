@@ -1,0 +1,14 @@
+[
+  {
+    "name": "foo #04",
+    "foo": {
+      "name": "foo #04",
+      "foo": {
+        "name": "foo #04",
+        "foo": {
+          "name": "foo #04"
+        }
+      }
+    }
+  }
+]
