@@ -1,20 +1,18 @@
 package cachexp_test
 
 import (
+	"encoding/json"
 	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
-	"reflect"
-	"sort"
 	"strings"
 	"testing"
 
 	"github.com/bukalapak/cachexp"
 	"github.com/bukalapak/ottoman/cache"
 	httpclone "github.com/bukalapak/ottoman/http/clone"
-	"github.com/google/go-cmp/cmp"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 )
@@ -23,24 +21,6 @@ func TestExpand(t *testing.T) {
 	p := NewProvider()
 	h := NewRemote()
 	defer h.Close()
-
-	opts := []cmp.Option{
-		cmp.Transformer("", func(v []interface{}) []interface{} {
-			y := v
-
-			sort.Slice(y, func(i, j int) bool {
-				x := reflect.ValueOf(y[i])
-				z := reflect.ValueOf(y[j])
-
-				return x.Len() < z.Len()
-			})
-
-			return y
-		}),
-		cmp.Comparer(func(x, y map[string]interface{}) bool {
-			return reflect.DeepEqual(x, y)
-		}),
-	}
 
 	for _, f := range fixtureGlob("*-expandable.json") {
 		t.Run(strings.TrimSuffix(f, ".json"), func(t *testing.T) {
@@ -52,13 +32,7 @@ func TestExpand(t *testing.T) {
 			if err != nil {
 				assert.Equal(t, x, v)
 			} else {
-				var cc interface{}
-				var xx interface{}
-
-				jsoniter.Unmarshal(v, &cc)
-				jsoniter.Unmarshal(x, &xx)
-
-				assert.True(t, cmp.Equal(xx, cc, opts...))
+				JSONEq(t, x, v)
 			}
 		})
 	}
@@ -130,6 +104,34 @@ func fixtureMap(pattern string) map[string][]byte {
 	}
 
 	return m
+}
+
+func JSONEq(t *testing.T, a, b []byte) {
+	var x interface{}
+	var y interface{}
+
+	if err := json.Unmarshal(a, &x); err != nil {
+		assert.Nil(t, err)
+	}
+
+	if err := json.Unmarshal(b, &y); err != nil {
+		assert.Nil(t, err)
+	}
+
+	compare(t, x, y)
+}
+
+func compare(t *testing.T, x, y interface{}) {
+	switch z := x.(type) {
+	case map[string]interface{}:
+		for k, v := range z {
+			compare(t, v, y.(map[string]interface{})[k])
+		}
+	case []interface{}:
+		assert.ElementsMatch(t, z, y)
+	default:
+		assert.Equal(t, x, y)
+	}
 }
 
 func NewRemote() *httptest.Server {
