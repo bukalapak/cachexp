@@ -37,6 +37,9 @@ func TestExpand(t *testing.T) {
 
 			return y
 		}),
+		cmp.Comparer(func(x, y map[string]interface{}) bool {
+			return reflect.DeepEqual(x, y)
+		}),
 	}
 
 	for _, f := range fixtureGlob("*-expandable.json") {
@@ -49,8 +52,8 @@ func TestExpand(t *testing.T) {
 			if err != nil {
 				assert.Equal(t, x, v)
 			} else {
-				cc := make(map[string]interface{})
-				xx := make(map[string]interface{})
+				var cc interface{}
+				var xx interface{}
 
 				jsoniter.Unmarshal(v, &cc)
 				jsoniter.Unmarshal(x, &xx)
