@@ -128,7 +128,10 @@ func childSlice(c Provider, q []interface{}, n int, r *http.Request) []map[strin
 	ss := make([]string, len(q))
 
 	for i, s := range q {
-		ss[i] = s.(string)
+		switch v := s.(type) {
+		case string:
+			ss[i] = v
+		}
 	}
 
 	vv := []map[string]interface{}{}
