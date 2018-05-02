@@ -1,0 +1,3 @@
+{
+  "__cache_keys": ["v1/foo/01", "v1/broken/01", 123, false, {"foo":"bar"}, ["baz"]]
+}

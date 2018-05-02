@@ -1,0 +1,6 @@
+{
+  "name": "cache #24",
+  "__cache_keys": {
+    "various": ["v1/foo/01", "v1/broken/01", 123, false, {"foo":"bar"}, ["baz"]]
+  }
+}
