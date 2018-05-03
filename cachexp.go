@@ -14,6 +14,10 @@ type ReadFetcher interface {
 	ReadFetchMulti(keys []string, r *http.Request) (map[string][]byte, error)
 }
 
+type Normalizer interface {
+	Normalize(key string) string
+}
+
 type Tuner interface {
 	ExpandKey() string
 	PlaceholderKey() string
@@ -23,6 +27,7 @@ type Tuner interface {
 
 type Provider interface {
 	Marshaler
+	Normalizer
 	ReadFetcher
 	Tuner() Tuner
 }
@@ -137,10 +142,11 @@ func childSlice(c Provider, q []interface{}, n int, r *http.Request) []map[strin
 	vv := []map[string]interface{}{}
 	mb, _ := c.ReadFetchMulti(ss, r)
 
-	for _, v := range mb {
+	for i := range ss {
 		m := make(map[string]interface{})
+		s := c.Normalize(ss[i])
 
-		if err := c.Unmarshal(v, &m); err != nil {
+		if err := c.Unmarshal(mb[s], &m); err != nil {
 			continue
 		}
 

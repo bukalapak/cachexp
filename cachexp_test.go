@@ -31,7 +31,7 @@ func TestExpand(t *testing.T) {
 			if err != nil {
 				assert.Equal(t, x, v)
 			} else {
-				JSONEq(t, x, v)
+				assert.JSONEq(t, string(x), string(v))
 			}
 		})
 	}
@@ -105,34 +105,6 @@ func fixtureMap(pattern string) map[string][]byte {
 	return m
 }
 
-func JSONEq(t *testing.T, a, b []byte) {
-	var x interface{}
-	var y interface{}
-
-	if err := json.Unmarshal(a, &x); err != nil {
-		assert.Nil(t, err)
-	}
-
-	if err := json.Unmarshal(b, &y); err != nil {
-		assert.Nil(t, err)
-	}
-
-	compare(t, x, y)
-}
-
-func compare(t *testing.T, x, y interface{}) {
-	switch z := x.(type) {
-	case map[string]interface{}:
-		for k, v := range z {
-			compare(t, v, y.(map[string]interface{})[k])
-		}
-	case []interface{}:
-		assert.ElementsMatch(t, z, y)
-	default:
-		assert.Equal(t, x, y)
-	}
-}
-
 func NewRemote() *httptest.Server {
 	rm := fixtureMap("remote-v?-??-*.json")
 	fn := func(w http.ResponseWriter, r *http.Request) {
@@ -173,6 +145,10 @@ func (p *Provider) ReadFetch(key string, r *http.Request) ([]byte, error) {
 
 func (p *Provider) ReadFetchMulti(keys []string, r *http.Request) (map[string][]byte, error) {
 	return p.N.ReadFetchMulti(p.N.NormalizeMulti(keys), r)
+}
+
+func (p *Provider) Normalize(key string) string {
+	return p.N.Normalize(key)
 }
 
 type Storage struct {
