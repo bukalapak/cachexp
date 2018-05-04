@@ -1,23 +1,11 @@
+// Package cachexp provides cache expansion mechanism using selected Provider.
 package cachexp
 
 import (
 	"net/http"
 )
 
-type Marshaler interface {
-	Marshal(v interface{}) ([]byte, error)
-	Unmarshal(b []byte, v interface{}) error
-}
-
-type ReadFetcher interface {
-	ReadFetch(key string, r *http.Request) ([]byte, error)
-	ReadFetchMulti(keys []string, r *http.Request) (map[string][]byte, error)
-}
-
-type Normalizer interface {
-	Normalize(key string) string
-}
-
+// Tuner allows cutomization during the expansion.
 type Tuner interface {
 	ExpandKey() string
 	PlaceholderKey() string
@@ -25,13 +13,22 @@ type Tuner interface {
 	IsExcluded(key string) bool
 }
 
+// A Provider provides data and transformation for the Expand function.
+// It's also provides Tuner to customize behaviour of the expansion.
 type Provider interface {
-	Marshaler
-	Normalizer
-	ReadFetcher
+	Marshal(v interface{}) ([]byte, error)
+	Unmarshal(b []byte, v interface{}) error
+
+	ReadFetch(key string, r *http.Request) ([]byte, error)
+	ReadFetchMulti(keys []string, r *http.Request) (map[string][]byte, error)
+
+	Normalize(key string) string
 	Tuner() Tuner
 }
 
+// Expand process expansion of the b using selected Provider.
+// When r provided, it can be used by Provider to fetch data
+// from remote backend when no local data is not exist during expansion.
 func Expand(c Provider, b []byte, r *http.Request) ([]byte, error) {
 	var v interface{}
 
