@@ -49,6 +49,8 @@ func expand(c Provider, m map[string]interface{}, n int, r *http.Request) interf
 	y := []map[string]interface{}{}
 	x := make(map[string]interface{})
 
+	var asSlice bool
+
 	for k, v := range m {
 		if k == c.Tuner().ExpandKey() {
 			d--
@@ -61,6 +63,7 @@ func expand(c Provider, m map[string]interface{}, n int, r *http.Request) interf
 					}
 				case []interface{}:
 					y = append(y, childSlice(c, t, d, r)...)
+					asSlice = true
 				}
 			}
 
@@ -80,7 +83,7 @@ func expand(c Provider, m map[string]interface{}, n int, r *http.Request) interf
 		return x
 	}
 
-	if len(y) != 0 {
+	if asSlice {
 		return y
 	}
 
