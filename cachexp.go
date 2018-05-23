@@ -40,10 +40,8 @@ func Expand(c Provider, b []byte, r *http.Request) ([]byte, error) {
 
 	switch m := v.(type) {
 	case map[string]interface{}:
-		var mrr *multierror.Error
-
 		z, err := expand(c, m, c.Tuner().ExpandDepth(), r)
-		mrr = multierror.Append(mrr, err)
+		mrr := multierror.Append(err)
 
 		d, err := c.Marshal(z)
 		return d, multierror.Append(mrr, err).ErrorOrNil()
@@ -163,12 +161,10 @@ func childSlice(c Provider, q []interface{}, n int, r *http.Request) ([]map[stri
 		}
 	}
 
-	var mrr *multierror.Error
-
 	vv := []map[string]interface{}{}
 
 	mb, err := c.ReadFetchMulti(ss, r)
-	mrr = multierror.Append(mrr, err)
+	mrr := multierror.Append(err)
 
 	for i := range ss {
 		m := make(map[string]interface{})
@@ -186,5 +182,5 @@ func childSlice(c Provider, q []interface{}, n int, r *http.Request) ([]map[stri
 		}
 	}
 
-	return vv, err
+	return vv, mrr.ErrorOrNil()
 }
