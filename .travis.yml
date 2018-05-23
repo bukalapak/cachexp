@@ -4,6 +4,6 @@ go:
 install:
   - go get -t ./...
 script:
-  - make cover
+  - make coverage
 after_success:
   - bash <(curl -s https://codecov.io/bash)
