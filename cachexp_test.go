@@ -29,7 +29,12 @@ func TestExpand(t *testing.T) {
 
 			v, err := cachexp.Expand(p, z, r)
 			if err != nil {
-				assert.Equal(t, x, v)
+				switch {
+				case strings.Contains(err.Error(), "error occurred"):
+					assert.JSONEq(t, string(x), string(v))
+				default:
+					assert.Equal(t, x, v)
+				}
 			} else {
 				assert.JSONEq(t, string(x), string(v))
 			}
