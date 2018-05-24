@@ -123,8 +123,11 @@ func childMap(c Provider, m map[string]interface{}, n int, r *http.Request) (map
 			z[k], err = childSlice(c, t, n, r)
 			mrr = multierror.Append(mrr, err)
 		case string:
-			q, err := loadMap(c, t, n, r)
-			if err != nil {
+			var err error
+			var q map[string]interface{}
+
+			if q, err = loadMap(c, t, n, r); err != nil {
+				mrr = multierror.Append(mrr, err)
 				continue
 			}
 
