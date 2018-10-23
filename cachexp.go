@@ -3,8 +3,6 @@ package cachexp
 
 import (
 	"net/http"
-
-	multierror "github.com/hashicorp/go-multierror"
 )
 
 // Tuner allows cutomization during the expansion.
@@ -40,23 +38,18 @@ func Expand(c Provider, b []byte, r *http.Request) ([]byte, error) {
 
 	switch m := v.(type) {
 	case map[string]interface{}:
-		z, err := expand(c, m, c.Tuner().ExpandDepth(), r)
-		mrr := multierror.Append(err)
-
-		d, err := c.Marshal(z)
-		return d, multierror.Append(mrr, err).ErrorOrNil()
+		return c.Marshal(expand(c, m, c.Tuner().ExpandDepth(), r))
 	}
 
 	return b, nil
 }
 
-func expand(c Provider, m map[string]interface{}, n int, r *http.Request) (interface{}, error) {
+func expand(c Provider, m map[string]interface{}, n int, r *http.Request) interface{} {
 	d := n
 	y := []map[string]interface{}{}
 	x := make(map[string]interface{})
 
 	var asSlice bool
-	var mrr *multierror.Error
 
 	for k, v := range m {
 		if k == c.Tuner().ExpandKey() {
@@ -65,17 +58,11 @@ func expand(c Provider, m map[string]interface{}, n int, r *http.Request) (inter
 			if d >= 0 {
 				switch t := v.(type) {
 				case map[string]interface{}:
-					vx, err := childMap(c, t, d, r)
-					mrr = multierror.Append(mrr, err)
-
-					for kk, vv := range vx {
+					for kk, vv := range childMap(c, t, d, r) {
 						x[kk] = vv
 					}
 				case []interface{}:
-					yx, err := childSlice(c, t, d, r)
-					mrr = multierror.Append(mrr, err)
-
-					y = append(y, yx...)
+					y = append(y, childSlice(c, t, d, r)...)
 					asSlice = true
 				}
 			}
@@ -85,10 +72,7 @@ func expand(c Provider, m map[string]interface{}, n int, r *http.Request) (inter
 
 		switch t := v.(type) {
 		case map[string]interface{}:
-			var err error
-
-			x[k], err = expand(c, t, d, r)
-			mrr = multierror.Append(mrr, err)
+			x[k] = expand(c, t, d, r)
 		default:
 			x[k] = v
 		}
@@ -96,20 +80,18 @@ func expand(c Provider, m map[string]interface{}, n int, r *http.Request) (inter
 
 	if len(y) != 0 && len(x) != 0 {
 		x[c.Tuner().PlaceholderKey()] = y
-		return x, mrr.ErrorOrNil()
+		return x
 	}
 
 	if asSlice {
-		return y, mrr.ErrorOrNil()
+		return y
 	}
 
-	return x, mrr.ErrorOrNil()
+	return x
 }
 
-func childMap(c Provider, m map[string]interface{}, n int, r *http.Request) (map[string]interface{}, error) {
+func childMap(c Provider, m map[string]interface{}, n int, r *http.Request) map[string]interface{} {
 	z := make(map[string]interface{}, len(m))
-
-	var mrr *multierror.Error
 
 	for k, v := range m {
 		if c.Tuner().IsExcluded(k) {
@@ -118,16 +100,10 @@ func childMap(c Provider, m map[string]interface{}, n int, r *http.Request) (map
 
 		switch t := v.(type) {
 		case []interface{}:
-			var err error
-
-			z[k], err = childSlice(c, t, n, r)
-			mrr = multierror.Append(mrr, err)
+			z[k] = childSlice(c, t, n, r)
 		case string:
-			var err error
-			var q map[string]interface{}
-
-			if q, err = loadMap(c, t, n, r); err != nil {
-				mrr = multierror.Append(mrr, err)
+			q, err := loadMap(c, t, n, r)
+			if err != nil {
 				continue
 			}
 
@@ -135,7 +111,7 @@ func childMap(c Provider, m map[string]interface{}, n int, r *http.Request) (map
 		}
 	}
 
-	return z, mrr.ErrorOrNil()
+	return z
 }
 
 func loadMap(c Provider, s string, n int, r *http.Request) (map[string]interface{}, error) {
@@ -146,15 +122,14 @@ func loadMap(c Provider, s string, n int, r *http.Request) (map[string]interface
 
 	m := make(map[string]interface{})
 
-	if err = c.Unmarshal(b, &m); err != nil {
+	if err := c.Unmarshal(b, &m); err != nil {
 		return nil, err
 	}
 
-	z, err := expand(c, m, n, r)
-	return z.(map[string]interface{}), err
+	return expand(c, m, n, r).(map[string]interface{}), nil
 }
 
-func childSlice(c Provider, q []interface{}, n int, r *http.Request) ([]map[string]interface{}, error) {
+func childSlice(c Provider, q []interface{}, n int, r *http.Request) []map[string]interface{} {
 	ss := make([]string, len(q))
 
 	for i, s := range q {
@@ -166,24 +141,20 @@ func childSlice(c Provider, q []interface{}, n int, r *http.Request) ([]map[stri
 
 	vv := []map[string]interface{}{}
 
-	mb, err := c.ReadFetchMulti(ss, r)
-	mrr := multierror.Append(err)
+	mb, _ := c.ReadFetchMulti(ss, r)
 
 	for i := range ss {
 		m := make(map[string]interface{})
 		s := c.Normalize(ss[i])
 
-		if err = c.Unmarshal(mb[s], &m); err != nil {
+		if err := c.Unmarshal(mb[s], &m); err != nil {
 			continue
 		}
 
-		z, err := expand(c, m, n, r)
-		mrr = multierror.Append(mrr, err)
-
-		if z != nil {
+		if z := expand(c, m, n, r); z != nil {
 			vv = append(vv, z.(map[string]interface{}))
 		}
 	}
 
-	return vv, mrr.ErrorOrNil()
+	return vv
 }

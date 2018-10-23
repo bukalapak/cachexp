@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/bukalapak/cachexp"
 	"github.com/bukalapak/ottoman/cache"
@@ -127,15 +128,16 @@ func NewRemote() *httptest.Server {
 }
 
 type Provider struct {
-	N *cache.Engine
+	N cache.RemoteProvider
 	t cachexp.Tuner
 }
 
 func NewProvider() cachexp.Provider {
 	g := NewStorage("prefix")
-	p := cache.NewProvider(g).(*cache.Engine)
-	p.Prefix = g.prefix
-	p.Resolver = NewResolver()
+	z := cache.NewProvider(g, g.prefix)
+	p := cache.NewRemoteProvider(z, cache.RemoteOption{
+		Resolver: NewResolver(),
+	})
 
 	return &Provider{N: p, t: NewTuner()}
 }
@@ -145,11 +147,21 @@ func (p *Provider) Unmarshal(b []byte, v interface{}) error { return json.Unmars
 func (p *Provider) Tuner() cachexp.Tuner                    { return p.t }
 
 func (p *Provider) ReadFetch(key string, r *http.Request) ([]byte, error) {
-	return p.N.ReadFetch(p.N.Normalize(key), r)
+	if b, err := p.N.Read(p.N.Normalize(key)); err == nil {
+		return b, err
+	}
+
+	b, _, err := p.N.Fetch(p.N.Normalize(key), r)
+	return b, err
 }
 
 func (p *Provider) ReadFetchMulti(keys []string, r *http.Request) (map[string][]byte, error) {
-	return p.N.ReadFetchMulti(p.N.NormalizeMulti(keys), r)
+	if b, err := p.N.ReadMulti(p.N.NormalizeMulti(keys)); err == nil {
+		return b, err
+	}
+
+	b, _, err := p.N.FetchMulti(p.N.NormalizeMulti(keys), r)
+	return b, err
 }
 
 func (p *Provider) Normalize(key string) string {
@@ -193,6 +205,10 @@ func (g *Storage) ReadMulti(keys []string) (map[string][]byte, error) {
 	}
 
 	return mx, nil
+}
+
+func (g *Storage) Write(key string, value []byte, expiration time.Duration) error {
+	return nil
 }
 
 type Resolver struct{}
