@@ -211,6 +211,10 @@ func (g *Storage) Write(key string, value []byte, expiration time.Duration) erro
 	return nil
 }
 
+func (g *Storage) Delete(key string) error {
+	return nil
+}
+
 type Resolver struct{}
 
 func NewResolver() cache.Resolver { return &Resolver{} }
